@@ -26,7 +26,7 @@ function getArchiveUrl() {
 const parts = CORE_REPO.split("/");
 
 if (parts.length !== 2 || !parts[0] || !parts[1]) {
-throw new Error("SILA_CORE_REPO lazima iwe katika mfumo owner/repository.");
+throw new Error("SILA_CORE_REPO lazima iwe owner/repository.");
 }
 
 return (
@@ -42,7 +42,8 @@ encodeURIComponent(CORE_REF)
 function githubRequest(url, options = {}, redirects = 0) {
 return new Promise((resolve, reject) => {
 if (redirects > 5) {
-return reject(new Error("GitHub imeelekeza ombi mara nyingi sana."));
+reject(new Error("GitHub imeelekeza ombi mara nyingi sana."));
+return;
 }
 
 const target = new URL(url);
@@ -51,7 +52,8 @@ if (
   target.protocol !== "https:" ||
   !["api.github.com", "codeload.github.com"].includes(target.hostname)
 ) {
-  return reject(new Error("GitHub URL haijaruhusiwa."));
+  reject(new Error("GitHub URL haijaruhusiwa."));
+  return;
 }
 
 const headers = {
@@ -60,6 +62,7 @@ const headers = {
   "X-GitHub-Api-Version": "2022-11-28"
 };
 
+// Usichapishe token kwenye logs.
 // Token inatumwa kwa GitHub API pekee.
 if (CORE_TOKEN && target.hostname === "api.github.com") {
   headers.Authorization = `Bearer ${CORE_TOKEN}`;
@@ -76,16 +79,18 @@ const request = https.get(
       response.resume();
 
       if (!location) {
-        return reject(new Error("GitHub redirect haina location."));
+        reject(new Error("GitHub redirect haina location."));
+        return;
       }
 
-      return resolve(
+      resolve(
         githubRequest(
           new URL(location, target).toString(),
           options,
           redirects + 1
         )
       );
+      return;
     }
 
     const chunks = [];
@@ -96,7 +101,9 @@ const request = https.get(
       size += chunk.length;
 
       if (size > maxBytes) {
-        request.destroy(new Error("Response imezidi ukubwa unaoruhusiwa."));
+        request.destroy(
+          new Error("Response imezidi ukubwa unaoruhusiwa.")
+        );
         return;
       }
 
@@ -148,7 +155,7 @@ const userResponse = await githubRequest(
 if (userResponse.status !== 200) {
 throw new Error(
 "GitHub haikukubali token. HTTP ${userResponse.status}. " +
-userResponse.body.toString("utf8").slice(0, 300)
+userResponse.body.toString("utf8").slice(0, 250)
 );
 }
 
@@ -157,24 +164,24 @@ let user;
 try {
 user = JSON.parse(userResponse.body.toString("utf8"));
 } catch {
-throw new Error("GitHub imerudisha jibu lisilo sahihi wakati wa kuthibitisha token.");
+throw new Error("Jibu la GitHub kuhusu akaunti halikusomeka.");
 }
 
-log("GitHub token: IMEKUBALIWA. Account: ${user.login || "haijulikani"}");
-log("Inakagua ruhusa ya kufikia private repository...");
+log(
+"GitHub token: IMEKUBALIWA. Account: ${user.login || "haijulikani"}"
+);
+
+log("Inakagua ruhusa ya kufikia repository...");
 
 const repoResponse = await githubRequest(
 "https://api.github.com/repos/${CORE_REPO}"
 );
 
 if (repoResponse.status !== 200) {
-const details = repoResponse.body.toString("utf8").slice(0, 300);
-
 throw new Error(
-  `Repository haijafikiwa. HTTP ${repoResponse.status}. ` +
-  `Angalia repository name na token permissions. GitHub response: ${details}`
+"Repository haijafikiwa. HTTP ${repoResponse.status}. " +
+repoResponse.body.toString("utf8").slice(0, 250)
 );
-
 }
 
 let repo;
@@ -182,7 +189,7 @@ let repo;
 try {
 repo = JSON.parse(repoResponse.body.toString("utf8"));
 } catch {
-throw new Error("GitHub imerudisha taarifa za repository zisizosomwa.");
+throw new Error("Taarifa za repository hazikusomeka.");
 }
 
 log("Repository access: IMEFANIKIWA (${repo.full_name || CORE_REPO}).");
@@ -195,7 +202,7 @@ const refResponse = await githubRequest(
 if (refResponse.status !== 200) {
 throw new Error(
 "Branch/ref "${CORE_REF}" haijathibitishwa. HTTP ${refResponse.status}. " +
-refResponse.body.toString("utf8").slice(0, 300)
+refResponse.body.toString("utf8").slice(0, 250)
 );
 }
 
@@ -213,7 +220,7 @@ maxBytes: 100 * 1024 * 1024
 if (response.status !== 200) {
 throw new Error(
 "Core download imeshindwa. HTTP ${response.status}. " +
-response.body.toString("utf8").slice(0, 300)
+response.body.toString("utf8").slice(0, 250)
 );
 }
 
@@ -248,7 +255,7 @@ await fs.rm(tempDir, { recursive: true, force: true });
 await fs.mkdir(tempDir, { recursive: true });
 
 try {
-log("Inakagua archive...");
+log("Inakagua na kutoa mafaili ya core...");
 
 const zip = new AdmZip(archive);
 const entries = zip.getEntries();
@@ -310,8 +317,9 @@ await fs.rm(tempDir, { recursive: true, force: true });
 
 async function installCoreDependencies() {
 log("Inasakinisha dependencies za private core...");
-log("Hii inaweza kuchukua dakika kadhaa.");
+log("Hatua hii inaweza kuchukua dakika kadhaa.");
 
+try {
 const result = await execFileAsync(
 "npm",
 [
@@ -329,14 +337,29 @@ env: process.env
 );
 
 if (result.stdout) {
-console.log(result.stdout.slice(-4000));
+  console.log(result.stdout.slice(-3000));
 }
 
 if (result.stderr) {
-console.log(result.stderr.slice(-4000));
+  console.log(result.stderr.slice(-3000));
 }
 
 log("Core dependencies: ZIMEKAMILIKA.");
+
+} catch (error) {
+if (error.stdout) {
+console.error(error.stdout.slice(-3000));
+}
+
+if (error.stderr) {
+  console.error(error.stderr.slice(-3000));
+}
+
+throw new Error(
+  `Kusakinisha dependencies kumeshindwa: ${error.message}`
+);
+
+}
 }
 
 async function start() {
@@ -352,8 +375,6 @@ await extractCore(archive);
 
 await installCoreDependencies();
 
-// Core itasoma SESSION_ID kutoka environment ikiwa code yake
-// imesanidiwa kutumia jina hilo.
 log("SESSION_ID: ${process.env.SESSION_ID ? "IPO" : "HAIPO"}");
 log("Thamani ya session haitachapishwa kwenye logs.");
 
