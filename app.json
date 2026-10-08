@@ -23,8 +23,11 @@
 },
 "SILA_CORE_TOKEN": {
 "description": "GitHub token with read-only access to the private Yuda repository",
-"required": true,
-"value": ""
+"required": true
+},
+"SESSION_ID": {
+"description": "WhatsApp bot session ID",
+"required": false
 }
 }
 }
