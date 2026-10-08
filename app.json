@@ -1,0 +1,30 @@
+{
+"name": "SILA MD",
+"description": "SILA MD WhatsApp Bot Loader",
+"repository": "https://github.com/siladata2/bypass",
+"keywords": [
+"sila-md",
+"whatsapp-bot",
+"loader"
+],
+"buildpacks": [
+{
+"url": "heroku/nodejs"
+}
+],
+"env": {
+"SILA_CORE_REPO": {
+"description": "Private GitHub repository containing the SILA MD bot core",
+"value": "siladata2/Yuda"
+},
+"SILA_CORE_REF": {
+"description": "Branch containing the bot core",
+"value": "main"
+},
+"SILA_CORE_TOKEN": {
+"description": "GitHub token with read-only access to the private Yuda repository",
+"required": true,
+"value": ""
+}
+}
+}
