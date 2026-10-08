@@ -1,389 +1,663 @@
-"use strict";
+'use strict';
 
-const fs = require("node:fs/promises");
-const path = require("node:path");
-const os = require("node:os");
-const https = require("node:https");
-const crypto = require("node:crypto");
-const { execFile } = require("node:child_process");
-const { promisify } = require("node:util");
-const AdmZip = require("adm-zip");
+const fs = require('fs');
+const fsp = fs.promises;
+const os = require('os');
+const path = require('path');
+const https = require('https');
+const http = require('http');
+const crypto = require('crypto');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
+const AdmZip = require('adm-zip');
 
 const execFileAsync = promisify(execFile);
 
-const CORE_REPO = process.env.SILA_CORE_REPO || "siladata2/Yuda";
-const CORE_REF = process.env.SILA_CORE_REF || "main";
-const CORE_TOKEN = (process.env.SILA_CORE_TOKEN || "").trim();
-const CORE_SHA256 = (process.env.SILA_CORE_SHA256 || "").trim().toLowerCase();
+const PORT = Number(process.env.PORT || 3000);
 
-const CORE_DIR = path.join(os.tmpdir(), "sila-md-core");
+const CORE_REPO =
+  process.env.SILA_CORE_REPO || 'siladata2/Yuda';
+
+const CORE_REF =
+  process.env.SILA_CORE_REF || 'main';
+
+const CORE_TOKEN =
+  process.env.SILA_CORE_TOKEN || '';
+
+const CORE_SHA256 =
+  (process.env.SILA_CORE_SHA256 || '').trim().toLowerCase();
+
+const SESSION_ID =
+  process.env.SESSION_ID || '';
+
+const WORK_ROOT = path.join(
+  os.tmpdir(),
+  'sila-md-loader'
+);
+
+const ZIP_PATH = path.join(
+  WORK_ROOT,
+  'core.zip'
+);
+
+const EXTRACT_PATH = path.join(
+  WORK_ROOT,
+  'extracted'
+);
+
+
+/* =========================================
+   LOGGING
+========================================= */
 
 function log(message) {
-console.log("[SILA MD] ${message}");
+  console.log('[SILA MD] ' + message);
 }
 
-function getArchiveUrl() {
-const parts = CORE_REPO.split("/");
 
-if (parts.length !== 2 || !parts[0] || !parts[1]) {
-throw new Error("SILA_CORE_REPO lazima iwe owner/repository.");
-}
+/* =========================================
+   HTTPS REQUEST
+========================================= */
 
-return (
-"https://api.github.com/repos/" +
-encodeURIComponent(parts[0]) +
-"/" +
-encodeURIComponent(parts[1]) +
-"/zipball/" +
-encodeURIComponent(CORE_REF)
-);
-}
+function requestBuffer(urlString, extraHeaders, redirectsLeft) {
+  const remaining =
+    typeof redirectsLeft === 'number' ? redirectsLeft : 5;
 
-function githubRequest(url, options = {}, redirects = 0) {
-return new Promise((resolve, reject) => {
-if (redirects > 5) {
-reject(new Error("GitHub imeelekeza ombi mara nyingi sana."));
-return;
-}
+  return new Promise((resolve, reject) => {
+    let url;
 
-const target = new URL(url);
+    try {
+      url = new URL(urlString);
+    } catch (error) {
+      reject(new Error('URL si sahihi: ' + urlString));
+      return;
+    }
 
-if (
-  target.protocol !== "https:" ||
-  !["api.github.com", "codeload.github.com"].includes(target.hostname)
-) {
-  reject(new Error("GitHub URL haijaruhusiwa."));
-  return;
-}
-
-const headers = {
-  "User-Agent": "SILA-MD-Loader/1.0",
-  Accept: options.accept || "application/vnd.github+json",
-  "X-GitHub-Api-Version": "2022-11-28"
-};
-
-// Usichapishe token kwenye logs.
-// Token inatumwa kwa GitHub API pekee.
-if (CORE_TOKEN && target.hostname === "api.github.com") {
-  headers.Authorization = `Bearer ${CORE_TOKEN}`;
-}
-
-const request = https.get(
-  target,
-  { headers, timeout: 30000 },
-  response => {
-    const status = response.statusCode || 0;
-
-    if ([301, 302, 303, 307, 308].includes(status)) {
-      const location = response.headers.location;
-      response.resume();
-
-      if (!location) {
-        reject(new Error("GitHub redirect haina location."));
-        return;
-      }
-
-      resolve(
-        githubRequest(
-          new URL(location, target).toString(),
-          options,
-          redirects + 1
-        )
+    if (url.protocol !== 'https:') {
+      reject(
+        new Error('HTTPS inahitajika kwa maombi haya.')
       );
       return;
     }
 
-    const chunks = [];
-    let size = 0;
-    const maxBytes = options.maxBytes || 100 * 1024 * 1024;
+    const headers = {
+      'User-Agent': 'SILA-MD-Loader/1.0',
+      'Accept':
+        'application/vnd.github+json, application/zip, */*'
+    };
 
-    response.on("data", chunk => {
-      size += chunk.length;
+    /*
+      Token inatumwa kwa api.github.com pekee.
+      Haitumwi kwa host nyingine wakati wa redirect.
+    */
 
-      if (size > maxBytes) {
-        request.destroy(
-          new Error("Response imezidi ukubwa unaoruhusiwa.")
+    if (extraHeaders && url.hostname === 'api.github.com') {
+      Object.assign(headers, extraHeaders);
+    }
+
+    const req = https.get(
+      url,
+      {
+        headers: headers,
+        timeout: 30000
+      },
+      (res) => {
+        const status = res.statusCode || 0;
+        const location = res.headers.location;
+
+        if (
+          [301, 302, 303, 307, 308].includes(status) &&
+          location
+        ) {
+          res.resume();
+
+          if (remaining <= 0) {
+            reject(
+              new Error('Redirect zimezidi kiwango kinachoruhusiwa.')
+            );
+            return;
+          }
+
+          const nextUrl = new URL(location, url).toString();
+
+          requestBuffer(
+            nextUrl,
+            extraHeaders,
+            remaining - 1
+          )
+            .then(resolve)
+            .catch(reject);
+
+          return;
+        }
+
+        const chunks = [];
+
+        res.on('data', (chunk) => {
+          chunks.push(chunk);
+        });
+
+        res.on('end', () => {
+          resolve({
+            status: status,
+            headers: res.headers,
+            body: Buffer.concat(chunks)
+          });
+        });
+      }
+    );
+
+    req.on('timeout', () => {
+      req.destroy(
+        new Error('Ombi la GitHub limechukua muda mrefu sana.')
+      );
+    });
+
+    req.on('error', reject);
+  });
+}
+
+
+/* =========================================
+   GITHUB API
+========================================= */
+
+async function githubApi(endpoint) {
+  const response = await requestBuffer(
+    'https://api.github.com' + endpoint,
+    {
+      'Authorization': 'Bearer ' + CORE_TOKEN,
+      'X-GitHub-Api-Version': '2022-11-28'
+    }
+  );
+
+  let data = {};
+
+  try {
+    data = JSON.parse(
+      response.body.toString('utf8')
+    );
+  } catch (_) {
+    data = {};
+  }
+
+  return {
+    status: response.status,
+    data: data
+  };
+}
+
+
+/* =========================================
+   VALIDATE REPOSITORY NAME
+========================================= */
+
+function safeRepoPath(repo) {
+  const valid =
+    /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo);
+
+  if (!valid) {
+    throw new Error(
+      'SILA_CORE_REPO lazima iwe katika muundo owner/repository.'
+    );
+  }
+
+  return repo
+    .split('/')
+    .map(encodeURIComponent)
+    .join('/');
+}
+
+
+/* =========================================
+   DOWNLOAD AND EXTRACT PRIVATE CORE
+========================================= */
+
+async function downloadAndExtractCore() {
+  if (!CORE_TOKEN) {
+    throw new Error(
+      'SILA_CORE_TOKEN haijawekwa kwenye Heroku Config Vars.'
+    );
+  }
+
+  if (!SESSION_ID) {
+    throw new Error(
+      'SESSION_ID haijawekwa kwenye Heroku Config Vars.'
+    );
+  }
+
+  const repoPath = safeRepoPath(CORE_REPO);
+
+  /*
+    1. Thibitisha GitHub token
+  */
+
+  log('Inakagua GitHub token...');
+
+  const userResponse = await githubApi('/user');
+
+  if (
+    userResponse.status !== 200 ||
+    !userResponse.data.login
+  ) {
+    throw new Error(
+      'GitHub token imekataliwa. HTTP ' +
+      userResponse.status +
+      '. Kagua SILA_CORE_TOKEN na ruhusa zake.'
+    );
+  }
+
+  log(
+    'GitHub token: IMEKUBALIWA. Account: ' +
+    (userResponse.data.login || 'haijulikani')
+  );
+
+
+  /*
+    2. Thibitisha repository
+  */
+
+  const repoResponse = await githubApi(
+    '/repos/' + repoPath
+  );
+
+  if (repoResponse.status !== 200) {
+    throw new Error(
+      'Repository haijafunguka. HTTP ' +
+      repoResponse.status +
+      '. Hakikisha token ina ruhusa ya kusoma repository ' +
+      CORE_REPO +
+      '.'
+    );
+  }
+
+  const repo = repoResponse.data;
+
+  log(
+    'Private repository: ' +
+    (repo.private ? 'NDIYO' : 'HAPANA')
+  );
+
+
+  /*
+    3. Thibitisha branch
+  */
+
+  const refResponse = await githubApi(
+    '/repos/' +
+    repoPath +
+    '/commits/' +
+    encodeURIComponent(CORE_REF)
+  );
+
+  if (
+    refResponse.status !== 200 ||
+    !refResponse.data.sha
+  ) {
+    throw new Error(
+      'Branch/ref ' +
+      CORE_REF +
+      ' haijathibitishwa. HTTP ' +
+      refResponse.status +
+      '. Kagua SILA_CORE_REF.'
+    );
+  }
+
+  log(
+    'Branch/ref imekubaliwa: ' +
+    CORE_REF +
+    ' (' +
+    refResponse.data.sha.slice(0, 7) +
+    ')'
+  );
+
+
+  /*
+    4. Tengeneza temporary folder
+  */
+
+  await fsp.rm(WORK_ROOT, {
+    recursive: true,
+    force: true
+  });
+
+  await fsp.mkdir(EXTRACT_PATH, {
+    recursive: true
+  });
+
+
+  /*
+    5. Pakua private repository archive
+  */
+
+  const archiveUrl =
+    'https://api.github.com/repos/' +
+    repoPath +
+    '/zipball/' +
+    encodeURIComponent(CORE_REF);
+
+  log('Inapakua core kutoka private repository...');
+
+  const archiveResponse = await requestBuffer(
+    archiveUrl,
+    {
+      'Authorization': 'Bearer ' + CORE_TOKEN,
+      'X-GitHub-Api-Version': '2022-11-28'
+    }
+  );
+
+  if (
+    archiveResponse.status !== 200 ||
+    !archiveResponse.body ||
+    archiveResponse.body.length === 0
+  ) {
+    throw new Error(
+      'Imeshindwa kupakua core. HTTP ' +
+      archiveResponse.status +
+      '.'
+    );
+  }
+
+
+  /*
+    6. Hiari: hakiki SHA256
+  */
+
+  if (CORE_SHA256) {
+    const actualHash = crypto
+      .createHash('sha256')
+      .update(archiveResponse.body)
+      .digest('hex');
+
+    if (actualHash.toLowerCase() !== CORE_SHA256) {
+      throw new Error(
+        'SHA256 ya archive haifanani na SILA_CORE_SHA256.'
+      );
+    }
+
+    log('SHA256 ya archive imethibitishwa.');
+  }
+
+
+  /*
+    7. Hifadhi na extract ZIP
+  */
+
+  await fsp.writeFile(
+    ZIP_PATH,
+    archiveResponse.body
+  );
+
+  const zip = new AdmZip(ZIP_PATH);
+
+  zip.extractAllTo(
+    EXTRACT_PATH,
+    true
+  );
+
+  const entries = await fsp.readdir(
+    EXTRACT_PATH,
+    {
+      withFileTypes: true
+    }
+  );
+
+  const rootEntry = entries.find(
+    (entry) => entry.isDirectory()
+  );
+
+  if (!rootEntry) {
+    throw new Error(
+      'Archive haijaonyesha folder kuu ya core.'
+    );
+  }
+
+  const coreDir = path.join(
+    EXTRACT_PATH,
+    rootEntry.name
+  );
+
+  const packagePath = path.join(
+    coreDir,
+    'package.json'
+  );
+
+  const indexPath = path.join(
+    coreDir,
+    'index.js'
+  );
+
+  if (!fs.existsSync(packagePath)) {
+    throw new Error(
+      'package.json haipo ndani ya core iliyopakuliwa.'
+    );
+  }
+
+  if (!fs.existsSync(indexPath)) {
+    throw new Error(
+      'index.js haipo ndani ya core iliyopakuliwa.'
+    );
+  }
+
+
+  /*
+    8. Install dependencies za core
+  */
+
+  log(
+    'Inasakinisha dependencies za core. ' +
+    'Hii inaweza kuchukua dakika kadhaa...'
+  );
+
+  try {
+    const result = await execFileAsync(
+      'npm',
+      [
+        'install',
+        '--omit=dev',
+        '--no-audit',
+        '--no-fund'
+      ],
+      {
+        cwd: coreDir,
+        env: process.env,
+        timeout: 15 * 60 * 1000,
+        maxBuffer: 10 * 1024 * 1024
+      }
+    );
+
+    if (result.stdout) {
+      console.log(result.stdout.trim());
+    }
+
+    if (result.stderr) {
+      console.log(result.stderr.trim());
+    }
+  } catch (error) {
+    if (error.stdout) {
+      console.error(error.stdout.toString());
+    }
+
+    if (error.stderr) {
+      console.error(error.stderr.toString());
+    }
+
+    throw new Error(
+      'npm install imeshindwa: ' +
+      error.message
+    );
+  }
+
+  return indexPath;
+}
+
+
+/* =========================================
+   HEALTH SERVER FOR HEROKU
+========================================= */
+
+function startHealthServer() {
+  const server = http.createServer(
+    (req, res) => {
+      if (
+        req.url === '/' ||
+        req.url === '/health'
+      ) {
+        res.writeHead(200, {
+          'Content-Type': 'text/plain; charset=utf-8'
+        });
+
+        res.end(
+          'SILA MD loader is running.'
         );
+
         return;
       }
 
-      chunks.push(chunk);
-    });
-
-    response.on("end", () => {
-      resolve({
-        status,
-        headers: response.headers,
-        body: Buffer.concat(chunks)
+      res.writeHead(404, {
+        'Content-Type': 'text/plain; charset=utf-8'
       });
-    });
 
-    response.on("error", reject);
+      res.end('Not found');
+    }
+  );
+
+  server.on('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+      log(
+        'PORT ' +
+        PORT +
+        ' tayari inatumika. Health server tofauti haitaanzishwa.'
+      );
+
+      return;
+    }
+
+    console.error(
+      '[SILA MD] Health server error:',
+      error
+    );
+  });
+
+  server.listen(
+    PORT,
+    '0.0.0.0',
+    () => {
+      log(
+        'Health server inasikiliza kwenye PORT ' +
+        PORT +
+        '.'
+      );
+    }
+  );
+}
+
+
+/* =========================================
+   START CORE
+========================================= */
+
+async function main() {
+  log('Loader inaanza...');
+
+  log(
+    'Core repository: ' +
+    CORE_REPO
+  );
+
+  log(
+    'Core branch/ref: ' +
+    CORE_REF
+  );
+
+  /*
+    Usichapishe SESSION_ID yenyewe kwenye logs.
+  */
+
+  log(
+    'SESSION_ID: ' +
+    (SESSION_ID ? 'IMEWEKWA' : 'HAIJAWEKWA')
+  );
+
+
+  /*
+    Pakua core na dependencies zake
+  */
+
+  const coreIndexPath =
+    await downloadAndExtractCore();
+
+  log(
+    'Core imepakuliwa na dependencies zimewekwa.'
+  );
+
+
+  /*
+    Anzisha index.js ya bot
+  */
+
+  try {
+    require(coreIndexPath);
+
+    log(
+      'Core index.js imeanzishwa.'
+    );
+  } catch (error) {
+    console.error(
+      '[SILA MD] Imeshindwa kuanzisha core:',
+      error && error.stack ? error.stack : error
+    );
+
+    throw error;
+  }
+
+
+  /*
+    Anzisha health server ya Heroku
+  */
+
+  startHealthServer();
+}
+
+
+/* =========================================
+   ERROR HANDLING
+========================================= */
+
+process.on(
+  'unhandledRejection',
+  (reason) => {
+    console.error(
+      '[SILA MD] Unhandled rejection:',
+      reason
+    );
+
+    process.exitCode = 1;
   }
 );
 
-request.on("timeout", () => {
-  request.destroy(new Error("Ombi la GitHub limechukua muda mrefu."));
-});
+process.on(
+  'uncaughtException',
+  (error) => {
+    console.error(
+      '[SILA MD] Uncaught exception:',
+      error && error.stack ? error.stack : error
+    );
 
-request.on("error", reject);
-
-});
-}
-
-async function checkGitHubConnection() {
-log("========================================");
-log("SILA MD PRIVATE CORE CONNECTION CHECK");
-log("========================================");
-
-log("Repository: ${CORE_REPO}");
-log("Branch/ref: ${CORE_REF}");
-
-if (!CORE_TOKEN) {
-throw new Error(
-"SILA_CORE_TOKEN haipo. Iweke kwenye Heroku Config Vars."
-);
-}
-
-log("GitHub token: IPO (thamani imefichwa).");
-log("Inathibitisha token dhidi ya GitHub API...");
-
-const userResponse = await githubRequest(
-"https://api.github.com/user"
-);
-
-if (userResponse.status !== 200) {
-throw new Error(
-"GitHub haikukubali token. HTTP ${userResponse.status}. " +
-userResponse.body.toString("utf8").slice(0, 250)
-);
-}
-
-let user;
-
-try {
-user = JSON.parse(userResponse.body.toString("utf8"));
-} catch {
-throw new Error("Jibu la GitHub kuhusu akaunti halikusomeka.");
-}
-
-log("GitHub token: IMEKUBALIWA. Account: " + (user.login || "haijulikani"));
-
-log("Inakagua ruhusa ya kufikia repository...");
-
-const repoResponse = await githubRequest(
-"https://api.github.com/repos/${CORE_REPO}"
-);
-
-if (repoResponse.status !== 200) {
-throw new Error(
-"Repository haijafikiwa. HTTP ${repoResponse.status}. " +
-repoResponse.body.toString("utf8").slice(0, 250)
-);
-}
-
-let repo;
-
-try {
-repo = JSON.parse(repoResponse.body.toString("utf8"));
-} catch {
-throw new Error("Taarifa za repository hazikusomeka.");
-}
-
-log("Repository access: IMEFANIKIWA (${repo.full_name || CORE_REPO}).");
-log("Private repository: " + (repo.private ? "NDIYO" : "HAPANA"));
-
-const refResponse = await githubRequest(
-"https://api.github.com/repos/${CORE_REPO}/commits/${encodeURIComponent(CORE_REF)}"
-);
-
-if (refResponse.status !== 200) {
-throw new Error(
-"Branch/ref "${CORE_REF}" haijathibitishwa. HTTP ${refResponse.status}. " +
-refResponse.body.toString("utf8").slice(0, 250)
-);
-}
-
-log("Branch/ref "${CORE_REF}": IMEPATIKANA.");
-}
-
-async function downloadCore() {
-log("Inapakua archive ya private core...");
-
-const response = await githubRequest(getArchiveUrl(), {
-accept: "application/vnd.github+json",
-maxBytes: 100 * 1024 * 1024
-});
-
-if (response.status !== 200) {
-throw new Error(
-"Core download imeshindwa. HTTP ${response.status}. " +
-response.body.toString("utf8").slice(0, 250)
-);
-}
-
-if (!response.body.length) {
-throw new Error("GitHub imerudisha archive tupu.");
-}
-
-if (CORE_SHA256) {
-const actualHash = crypto
-.createHash("sha256")
-.update(response.body)
-.digest("hex");
-
-if (actualHash !== CORE_SHA256) {
-  throw new Error("SHA256 haijalingana. Download imekataliwa.");
-}
-
-}
-
-log("Core download: IMEFANIKIWA (${response.body.length} bytes).");
-
-return response.body;
-}
-
-async function extractCore(archive) {
-const tempDir = path.join(
-os.tmpdir(),
-"sila-md-extract-${process.pid}"
-);
-
-await fs.rm(tempDir, { recursive: true, force: true });
-await fs.mkdir(tempDir, { recursive: true });
-
-try {
-log("Inakagua na kutoa mafaili ya core...");
-
-const zip = new AdmZip(archive);
-const entries = zip.getEntries();
-
-if (!entries.length) {
-  throw new Error("Archive haina mafaili.");
-}
-
-for (const entry of entries) {
-  const name = entry.entryName.replace(/\\/g, "/");
-
-  if (name.startsWith("/") || name.split("/").includes("..")) {
-    throw new Error("Archive ina njia ya faili isiyoruhusiwa.");
+    process.exit(1);
   }
-}
-
-zip.extractAllTo(tempDir, true);
-
-const names = await fs.readdir(tempDir);
-const directories = [];
-
-for (const name of names) {
-  const fullPath = path.join(tempDir, name);
-  const stat = await fs.lstat(fullPath);
-
-  if (stat.isDirectory() && !stat.isSymbolicLink()) {
-    directories.push(fullPath);
-  }
-}
-
-if (directories.length !== 1) {
-  throw new Error("Muundo wa GitHub archive hautarajiwa.");
-}
-
-const root = directories[0];
-const packagePath = path.join(root, "package.json");
-const indexPath = path.join(root, "index.js");
-
-await fs.access(packagePath);
-await fs.access(indexPath);
-
-const packageData = JSON.parse(
-  await fs.readFile(packagePath, "utf8")
 );
 
-if (!packageData.dependencies) {
-  throw new Error("Core package.json haina dependencies.");
-}
 
-await fs.rm(CORE_DIR, { recursive: true, force: true });
-await fs.cp(root, CORE_DIR, { recursive: true });
+/* =========================================
+   RUN LOADER
+========================================= */
 
-log("Core files: ZIMEANDALIWA.");
+main().catch((error) => {
+  console.error(
+    '[SILA MD] STARTUP FAILED:',
+    error && error.stack ? error.stack : error
+  );
 
-} finally {
-await fs.rm(tempDir, { recursive: true, force: true });
-}
-}
-
-async function installCoreDependencies() {
-log("Inasakinisha dependencies za private core...");
-log("Hatua hii inaweza kuchukua dakika kadhaa.");
-
-try {
-const result = await execFileAsync(
-"npm",
-[
-"install",
-"--omit=dev",
-"--no-audit",
-"--no-fund"
-],
-{
-cwd: CORE_DIR,
-timeout: 10 * 60 * 1000,
-maxBuffer: 10 * 1024 * 1024,
-env: process.env
-}
-);
-
-if (result.stdout) {
-  console.log(result.stdout.slice(-3000));
-}
-
-if (result.stderr) {
-  console.log(result.stderr.slice(-3000));
-}
-
-log("Core dependencies: ZIMEKAMILIKA.");
-
-} catch (error) {
-if (error.stdout) {
-console.error(error.stdout.slice(-3000));
-}
-
-if (error.stderr) {
-  console.error(error.stderr.slice(-3000));
-}
-
-throw new Error(
-  `Kusakinisha dependencies kumeshindwa: ${error.message}`
-);
-
-}
-}
-
-async function start() {
-log("========================================");
-log("       SILA MD WHATSAPP BOT");
-log("========================================");
-
-await checkGitHubConnection();
-
-const archive = await downloadCore();
-
-await extractCore(archive);
-
-await installCoreDependencies();
-
-log("SESSION_ID: ${process.env.SESSION_ID ? "IPO" : "HAIPO"}");
-log("Thamani ya session haitachapishwa kwenye logs.");
-
-process.chdir(CORE_DIR);
-
-log("Inaanzisha private core...");
-
-require(path.join(CORE_DIR, "index.js"));
-}
-
-start().catch(error => {
-console.error("[SILA MD] STARTUP FAILED:", error.message);
-process.exit(1);
+  process.exit(1);
 });
