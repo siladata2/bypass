@@ -191,7 +191,7 @@ throw new Error("Taarifa za repository hazikusomeka.");
 }
 
 log("Repository access: IMEFANIKIWA (${repo.full_name || CORE_REPO}).");
-log("Private repository: ${repo.private ? "NDIYO" : "HAPANA"}");
+log("Private repository: " + (repo.private ? "NDIYO" : "HAPANA"));
 
 const refResponse = await githubRequest(
 "https://api.github.com/repos/${CORE_REPO}/commits/${encodeURIComponent(CORE_REF)}"
