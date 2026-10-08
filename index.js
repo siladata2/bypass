@@ -167,9 +167,7 @@ user = JSON.parse(userResponse.body.toString("utf8"));
 throw new Error("Jibu la GitHub kuhusu akaunti halikusomeka.");
 }
 
-log(
-"GitHub token: IMEKUBALIWA. Account: ${user.login || "haijulikani"}"
-);
+log("GitHub token: IMEKUBALIWA. Account: " + (user.login || "haijulikani"));
 
 log("Inakagua ruhusa ya kufikia repository...");
 
