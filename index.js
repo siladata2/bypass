@@ -13,16 +13,20 @@ const execFileAsync = promisify(execFile);
 
 const CORE_REPO = process.env.SILA_CORE_REPO || "siladata2/Yuda";
 const CORE_REF = process.env.SILA_CORE_REF || "main";
-const CORE_TOKEN = process.env.SILA_CORE_TOKEN || "";
+const CORE_TOKEN = (process.env.SILA_CORE_TOKEN || "").trim();
 const CORE_SHA256 = (process.env.SILA_CORE_SHA256 || "").trim().toLowerCase();
 
 const CORE_DIR = path.join(os.tmpdir(), "sila-md-core");
+
+function log(message) {
+console.log("[SILA MD] ${message}");
+}
 
 function getArchiveUrl() {
 const parts = CORE_REPO.split("/");
 
 if (parts.length !== 2 || !parts[0] || !parts[1]) {
-throw new Error("SILA_CORE_REPO lazima iwe owner/repository.");
+throw new Error("SILA_CORE_REPO lazima iwe katika mfumo owner/repository.");
 }
 
 return (
@@ -35,10 +39,10 @@ encodeURIComponent(CORE_REF)
 );
 }
 
-function download(url, redirects = 0) {
+function githubRequest(url, options = {}, redirects = 0) {
 return new Promise((resolve, reject) => {
 if (redirects > 5) {
-return reject(new Error("GitHub imeelekeza mara nyingi sana."));
+return reject(new Error("GitHub imeelekeza ombi mara nyingi sana."));
 }
 
 const target = new URL(url);
@@ -47,63 +51,72 @@ if (
   target.protocol !== "https:" ||
   !["api.github.com", "codeload.github.com"].includes(target.hostname)
 ) {
-  return reject(new Error("Anwani ya download haijaruhusiwa."));
+  return reject(new Error("GitHub URL haijaruhusiwa."));
 }
 
 const headers = {
   "User-Agent": "SILA-MD-Loader/1.0",
-  Accept: "application/vnd.github+json"
+  Accept: options.accept || "application/vnd.github+json",
+  "X-GitHub-Api-Version": "2022-11-28"
 };
 
-// Tuma token kwa GitHub API pekee, si kwa codeload redirect.
+// Token inatumwa kwa GitHub API pekee.
 if (CORE_TOKEN && target.hostname === "api.github.com") {
   headers.Authorization = `Bearer ${CORE_TOKEN}`;
 }
 
-const request = https.get(target, { headers, timeout: 30000 }, response => {
-  const status = response.statusCode || 0;
+const request = https.get(
+  target,
+  { headers, timeout: 30000 },
+  response => {
+    const status = response.statusCode || 0;
 
-  if ([301, 302, 303, 307, 308].includes(status)) {
-    const location = response.headers.location;
-    response.resume();
+    if ([301, 302, 303, 307, 308].includes(status)) {
+      const location = response.headers.location;
+      response.resume();
 
-    if (!location) {
-      return reject(new Error("GitHub haikutoa redirect address."));
+      if (!location) {
+        return reject(new Error("GitHub redirect haina location."));
+      }
+
+      return resolve(
+        githubRequest(
+          new URL(location, target).toString(),
+          options,
+          redirects + 1
+        )
+      );
     }
 
-    return resolve(
-      download(new URL(location, target).toString(), redirects + 1)
-    );
+    const chunks = [];
+    let size = 0;
+    const maxBytes = options.maxBytes || 100 * 1024 * 1024;
+
+    response.on("data", chunk => {
+      size += chunk.length;
+
+      if (size > maxBytes) {
+        request.destroy(new Error("Response imezidi ukubwa unaoruhusiwa."));
+        return;
+      }
+
+      chunks.push(chunk);
+    });
+
+    response.on("end", () => {
+      resolve({
+        status,
+        headers: response.headers,
+        body: Buffer.concat(chunks)
+      });
+    });
+
+    response.on("error", reject);
   }
-
-  if (status !== 200) {
-    response.resume();
-    return reject(
-      new Error(`GitHub download imeshindwa. HTTP ${status}.`)
-    );
-  }
-
-  const chunks = [];
-  let totalBytes = 0;
-  const maxBytes = 100 * 1024 * 1024;
-
-  response.on("data", chunk => {
-    totalBytes += chunk.length;
-
-    if (totalBytes > maxBytes) {
-      request.destroy(new Error("Archive imezidi ukubwa wa 100 MB."));
-      return;
-    }
-
-    chunks.push(chunk);
-  });
-
-  response.on("end", () => resolve(Buffer.concat(chunks)));
-  response.on("error", reject);
-});
+);
 
 request.on("timeout", () => {
-  request.destroy(new Error("GitHub download imechukua muda mrefu."));
+  request.destroy(new Error("Ombi la GitHub limechukua muda mrefu."));
 });
 
 request.on("error", reject);
@@ -111,19 +124,121 @@ request.on("error", reject);
 });
 }
 
-async function extractCore(archive) {
+async function checkGitHubConnection() {
+log("========================================");
+log("SILA MD PRIVATE CORE CONNECTION CHECK");
+log("========================================");
+
+log("Repository: ${CORE_REPO}");
+log("Branch/ref: ${CORE_REF}");
+
+if (!CORE_TOKEN) {
+throw new Error(
+"SILA_CORE_TOKEN haipo. Iweke kwenye Heroku Config Vars."
+);
+}
+
+log("GitHub token: IPO (thamani imefichwa).");
+log("Inathibitisha token dhidi ya GitHub API...");
+
+const userResponse = await githubRequest(
+"https://api.github.com/user"
+);
+
+if (userResponse.status !== 200) {
+throw new Error(
+"GitHub haikukubali token. HTTP ${userResponse.status}. " +
+userResponse.body.toString("utf8").slice(0, 300)
+);
+}
+
+let user;
+
+try {
+user = JSON.parse(userResponse.body.toString("utf8"));
+} catch {
+throw new Error("GitHub imerudisha jibu lisilo sahihi wakati wa kuthibitisha token.");
+}
+
+log("GitHub token: IMEKUBALIWA. Account: ${user.login || "haijulikani"}");
+log("Inakagua ruhusa ya kufikia private repository...");
+
+const repoResponse = await githubRequest(
+"https://api.github.com/repos/${CORE_REPO}"
+);
+
+if (repoResponse.status !== 200) {
+const details = repoResponse.body.toString("utf8").slice(0, 300);
+
+throw new Error(
+  `Repository haijafikiwa. HTTP ${repoResponse.status}. ` +
+  `Angalia repository name na token permissions. GitHub response: ${details}`
+);
+
+}
+
+let repo;
+
+try {
+repo = JSON.parse(repoResponse.body.toString("utf8"));
+} catch {
+throw new Error("GitHub imerudisha taarifa za repository zisizosomwa.");
+}
+
+log("Repository access: IMEFANIKIWA (${repo.full_name || CORE_REPO}).");
+log("Private repository: ${repo.private ? "NDIYO" : "HAPANA"}");
+
+const refResponse = await githubRequest(
+"https://api.github.com/repos/${CORE_REPO}/commits/${encodeURIComponent(CORE_REF)}"
+);
+
+if (refResponse.status !== 200) {
+throw new Error(
+"Branch/ref "${CORE_REF}" haijathibitishwa. HTTP ${refResponse.status}. " +
+refResponse.body.toString("utf8").slice(0, 300)
+);
+}
+
+log("Branch/ref "${CORE_REF}": IMEPATIKANA.");
+}
+
+async function downloadCore() {
+log("Inapakua archive ya private core...");
+
+const response = await githubRequest(getArchiveUrl(), {
+accept: "application/vnd.github+json",
+maxBytes: 100 * 1024 * 1024
+});
+
+if (response.status !== 200) {
+throw new Error(
+"Core download imeshindwa. HTTP ${response.status}. " +
+response.body.toString("utf8").slice(0, 300)
+);
+}
+
+if (!response.body.length) {
+throw new Error("GitHub imerudisha archive tupu.");
+}
+
 if (CORE_SHA256) {
 const actualHash = crypto
 .createHash("sha256")
-.update(archive)
+.update(response.body)
 .digest("hex");
 
 if (actualHash !== CORE_SHA256) {
-  throw new Error("SHA256 haijalingana. Archive imekataliwa.");
+  throw new Error("SHA256 haijalingana. Download imekataliwa.");
 }
 
 }
 
+log("Core download: IMEFANIKIWA (${response.body.length} bytes).");
+
+return response.body;
+}
+
+async function extractCore(archive) {
 const tempDir = path.join(
 os.tmpdir(),
 "sila-md-extract-${process.pid}"
@@ -133,20 +248,19 @@ await fs.rm(tempDir, { recursive: true, force: true });
 await fs.mkdir(tempDir, { recursive: true });
 
 try {
+log("Inakagua archive...");
+
 const zip = new AdmZip(archive);
 const entries = zip.getEntries();
 
 if (!entries.length) {
-  throw new Error("Archive ya core haina mafaili.");
+  throw new Error("Archive haina mafaili.");
 }
 
 for (const entry of entries) {
-  const entryName = entry.entryName.replace(/\\/g, "/");
+  const name = entry.entryName.replace(/\\/g, "/");
 
-  if (
-    entryName.startsWith("/") ||
-    entryName.split("/").includes("..")
-  ) {
+  if (name.startsWith("/") || name.split("/").includes("..")) {
     throw new Error("Archive ina njia ya faili isiyoruhusiwa.");
   }
 }
@@ -169,9 +283,9 @@ if (directories.length !== 1) {
   throw new Error("Muundo wa GitHub archive hautarajiwa.");
 }
 
-const extractedRoot = directories[0];
-const packagePath = path.join(extractedRoot, "package.json");
-const indexPath = path.join(extractedRoot, "index.js");
+const root = directories[0];
+const packagePath = path.join(root, "package.json");
+const indexPath = path.join(root, "index.js");
 
 await fs.access(packagePath);
 await fs.access(indexPath);
@@ -185,17 +299,20 @@ if (!packageData.dependencies) {
 }
 
 await fs.rm(CORE_DIR, { recursive: true, force: true });
-await fs.cp(extractedRoot, CORE_DIR, { recursive: true });
+await fs.cp(root, CORE_DIR, { recursive: true });
+
+log("Core files: ZIMEANDALIWA.");
 
 } finally {
 await fs.rm(tempDir, { recursive: true, force: true });
 }
 }
 
-async function installDependencies() {
-console.log("📦 SILA MD: Inasakinisha dependencies za bot...");
+async function installCoreDependencies() {
+log("Inasakinisha dependencies za private core...");
+log("Hii inaweza kuchukua dakika kadhaa.");
 
-await execFileAsync(
+const result = await execFileAsync(
 "npm",
 [
 "install",
@@ -211,39 +328,43 @@ env: process.env
 }
 );
 
-console.log("✅ Dependencies zimekamilika.");
+if (result.stdout) {
+console.log(result.stdout.slice(-4000));
+}
+
+if (result.stderr) {
+console.log(result.stderr.slice(-4000));
+}
+
+log("Core dependencies: ZIMEKAMILIKA.");
 }
 
 async function start() {
-console.log("==================================");
-console.log("       SILA MD WHATSAPP BOT");
-console.log("==================================");
+log("========================================");
+log("       SILA MD WHATSAPP BOT");
+log("========================================");
 
-if (!CORE_TOKEN) {
-throw new Error(
-"SILA_CORE_TOKEN haijawekwa kwenye Environment Variables."
-);
-}
+await checkGitHubConnection();
 
-console.log("📁 Core repository: ${CORE_REPO}");
-console.log("🌿 Branch/ref: ${CORE_REF}");
-console.log("⬇️ Inapakua private core...");
+const archive = await downloadCore();
 
-const archive = await download(getArchiveUrl());
-
-console.log("📂 Inatoa mafaili ya core...");
 await extractCore(archive);
 
-await installDependencies();
+await installCoreDependencies();
+
+// Core itasoma SESSION_ID kutoka environment ikiwa code yake
+// imesanidiwa kutumia jina hilo.
+log("SESSION_ID: ${process.env.SESSION_ID ? "IPO" : "HAIPO"}");
+log("Thamani ya session haitachapishwa kwenye logs.");
 
 process.chdir(CORE_DIR);
 
-console.log("🚀 Inaanzisha SILA MD core...");
+log("Inaanzisha private core...");
 
 require(path.join(CORE_DIR, "index.js"));
 }
 
 start().catch(error => {
-console.error("❌ SILA MD STARTUP FAILED:", error.message);
+console.error("[SILA MD] STARTUP FAILED:", error.message);
 process.exit(1);
 });
