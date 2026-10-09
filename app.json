@@ -1,12 +1,16 @@
 {
-  "name": "SILA MD",
+  "name": "sila-md-loader",
   "description": "SILA MD WhatsApp Bot Loader",
   "repository": "https://github.com/siladata2/bypass",
+  "logo": "https://github.com/siladata2.png",
   "keywords": [
     "sila-md",
     "whatsapp-bot",
+    "baileys",
     "loader"
   ],
+  "success_url": "/",
+  "stack": "heroku-24",
   "buildpacks": [
     {
       "url": "https://github.com/heroku/heroku-buildpack-apt"
@@ -17,20 +21,28 @@
   ],
   "env": {
     "SILA_CORE_REPO": {
-      "description": "Private GitHub repository containing the SILA MD bot core",
-      "value": "siladata2/Yuda"
+      "description": "GitHub repository ya private SILA MD core, mfano siladata2/Yuda",
+      "value": "siladata2/Yuda",
+      "required": true
     },
     "SILA_CORE_REF": {
-      "description": "Branch containing the bot core",
-      "value": "main"
+      "description": "Branch ya core repository",
+      "value": "main",
+      "required": true
     },
     "SILA_CORE_TOKEN": {
-      "description": "GitHub token with read-only access to the private Yuda repository",
+      "description": "GitHub Personal Access Token yenye ruhusa ya kusoma private core repository",
       "required": true
     },
     "SESSION_ID": {
-      "description": "SILA MD WhatsApp session string",
+      "description": "WhatsApp session ID ya SILA MD",
       "required": true
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
     }
   }
 }
