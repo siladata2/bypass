@@ -452,12 +452,13 @@ async function downloadAndExtractCore() {
   try {
     const result = await execFileAsync(
       'npm',
-      [
-        'install',
-        '--omit=dev',
-        '--no-audit',
-        '--no-fund'
-      ],
+  [
+  'install',
+  '--omit=dev',
+  '--no-audit',
+  '--no-fund',
+  '--allow-git=all'
+],
       {
         cwd: coreDir,
         env: process.env,
