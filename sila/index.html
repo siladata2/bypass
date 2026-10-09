@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#080d12">
+<title>SILA TECH | Bot Dashboard</title>
+
+<style>
+:root {
+    --bg: #080d12;
+    --panel: #101820;
+    --panel2: #131e27;
+    --border: rgba(255,255,255,.075);
+    --text: #f2f7fa;
+    --muted: #84949f;
+    --green: #20e69a;
+    --green2: #12b978;
+    --red: #ff5d6c;
+    --yellow: #ffca68;
+    --blue: #63a9ff;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: Inter, "Segoe UI", Arial, sans-serif;
+    min-height: 100vh;
+}
+
+button {
+    font: inherit;
+    cursor: pointer;
+}
+
+.app {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* SIDEBAR */
+
+.sidebar {
+    width: 250px;
+    background: #0b1117;
+    border-right: 1px solid var(--border);
+    padding: 25px 17px;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 8px 32px;
+}
+
+.brand-logo {
+    width: 43px;
+    height: 43px;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    color: #04140d;
+    font-size: 22px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #45ffc0, #13b879);
+    box-shadow: 0 0 25px #16d98a25;
+}
+
+.brand-name {
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+}
+
+.brand-name small {
+    display: block;
+    color: var(--green);
+    font-size: 10px;
+    letter-spacing: 3px;
+    margin-top: 4px;
+}
+
+.nav-label {
+    font-size: 10px;
+    color: #61717d;
+    letter-spacing: 2px;
+    padding: 0 12px;
+    margin: 14px 0 12px;
+}
+
+.nav-item {
+    width: 100%;
+    padding: 13px 14px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    border: 1px solid transparent;
+    border-radius: 11px;
+    color: #96a6b1;
+    background: transparent;
+    text-align: left;
+    font-size: 13px;
+    margin-bottom: 5px;
+    transition: .2s;
+}
+
+.nav-item:hover,
+.nav-item.active {
+    color: var(--green);
+    background: #17d98a12;
+    border-color: #17d98a20;
+}
+
+.nav-icon {
+    width: 20px;
+    text-align: center;
+    font-size: 17px;
+}
+
+.sidebar-bottom {
+    margin-top: auto;
+    padding-top: 25px;
+}
+
+.help-card {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--panel);
+    padding: 15px;
+}
+
+.help-card strong {
+    font-size: 12px;
+}
+
+.help-card p {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.7;
+    margin: 9px 0 12px;
+}
+
+.help-card button {
+    width: 100%;
+    border: 1px solid #20e69a30;
+    background: #20e69a10;
+    color: var(--green);
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 11px;
+}
+
+/* MAIN */
+
+.main {
+    flex: 1;
+    min-width: 0;
+}
+
+.topbar {
+    height: 82px;
+    padding: 0 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.page-title {
+    font-size: 20px;
+    font-weight: 750;
+}
+
+.breadcrumb {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 6px;
+}
+
+.top-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.live-pill {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 9px 12px;
+    border-radius: 30px;
+    color: var(--green);
+    background: #20e69a0e;
+    border: 1px solid #20e69a22;
+    font-size: 11px;
+}
+
+.dot {
+    width: 7px;
+    height: 7px;
+    background: var(--green);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--green);
+}
+
+.avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    background: #172b28;
+    color: var(--green);
+    font-size: 13px;
+    font-weight: 800;
+    border: 1px solid #20e69a22;
+}
+
+.content {
+    padding: 30px 32px;
+    max-width: 1600px;
+    margin: auto;
+}
+
+.welcome {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 25px;
+}
+
+.welcome h2 {
+    font-size: 25px;
+    margin-bottom: 8px;
+    letter-spacing: -.7px;
+}
+
+.welcome p {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.refresh-btn {
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: #dce7ec;
+    font-size: 12px;
+}
+
+.refresh-btn:hover {
+    border-color: #20e69a60;
+    color: var(--green);
+}
+
+/* STATUS BANNER */
+
+.status-banner {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(115deg, #102b24, #10201f 50%, #111b24);
+    border: 1px solid #20e69a27;
+    border-radius: 18px;
+    padding: 25px;
+    margin-bottom: 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+.status-banner::after {
+    content: "";
+    position: absolute;
+    width: 250px;
+    height: 250px;
+    right: -90px;
+    top: -130px;
+    border-radius: 50%;
+    background: #20e69a10;
+    filter: blur(8px);
+}
+
+.status-left {
+    display: flex;
+    align-items: center;
+    gap: 17px;
+    position: relative;
+    z-index: 1;
+}
+
+.status-icon {
+    width: 57px;
+    height: 57px;
+    border-radius: 17px;
+    display: grid;
+    place-items: center;
+    background: #20e69a17;
+    border: 1px solid #20e69a35;
+    color: var(--green);
+    font-size: 25px;
+}
+
+.status-banner h3 {
+    font-size: 17px;
+    margin-bottom: 7px;
+}
+
+.status-banner p {
+    font-size: 12px;
+    color: #9bb4ad;
+}
+
+.status-actions {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    gap: 9px;
+    flex-wrap: wrap;
+}
+
+.status-tag {
+    border: 1px solid #20e69a35;
+    background: #20e69a12;
+    color: var(--green);
+    border-radius: 8px;
+    padding: 10px 13px;
+    font-size: 11px;
+}
+
+/* STAT CARDS */
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 22px;
+}
+
+.card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    padding: 19px;
+    min-width: 0;
+}
+
+.stat-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.stat-label {
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.stat-icon {
+    width: 35px;
+    height: 35px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    font-size: 16px;
+}
+
+.icon-green { background: #20e69a13; color: var(--green); }
+.icon-blue { background: #63a9ff13; color: var(--blue); }
+.icon-yellow { background: #ffca6813; color: var(--yellow); }
+.icon-red { background: #ff5d6c13; color: var(--red); }
+
+.stat-value {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -.8px;
+    overflow-wrap: anywhere;
+}
+
+.stat-bottom {
+    color: var(--muted);
+    font-size: 10px;
+    margin-top: 10px;
+}
+
+.positive {
+    color: var(--green);
+}
+
+/* GRID CONTENT */
+
+.grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(270px, 1fr);
+    gap: 18px;
+}
+
+.panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    padding: 21px;
+    min-width: 0;
+}
+
+.panel-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 21px;
+}
+
+.panel-heading h3 {
+    font-size: 14px;
+}
+
+.panel-heading span {
+    font-size: 10px;
+    color: var(--muted);
+}
+
+.chart {
+    height: 190px;
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-around;
+    gap: 10px;
+    padding: 10px 4px 25px;
+    border-bottom: 1px solid var(--border);
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 46px,
+        #ffffff08 47px,
+        transparent 48px
+    );
+}
+
+.bar-group {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.bar {
+    width: min(27px, 75%);
+    min-height: 5px;
+    border-radius: 6px 6px 2px 2px;
+    background: linear-gradient(to top, #0f9c69, #35efaa);
+    opacity: .85;
+    transition: height .3s;
+}
+
+.bar-label {
+    font-size: 9px;
+    color: var(--muted);
+}
+
+.chart-note {
+    color: var(--muted);
+    font-size: 10px;
+    margin-top: 15px;
+    line-height: 1.6;
+}
+
+.service-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.service {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.service:last-child {
+    border-bottom: 0;
+}
+
+.service-icon {
+    width: 37px;
+    height: 37px;
+    border-radius: 11px;
+    display: grid;
+    place-items: center;
+    background: #ffffff07;
+    font-size: 16px;
+}
+
+.service-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.service-info strong {
+    display: block;
+    font-size: 12px;
+    margin-bottom: 5px;
+}
+
+.service-info small {
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.service-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--green);
+    font-size: 10px;
+}
+
+.service-status .dot {
+    width: 6px;
+    height: 6px;
+}
+
+/* ACTIVITY */
+
+.activity-panel {
+    margin-top: 18px;
+}
+
+.activity-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.activity {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 13px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.activity:last-child {
+    border-bottom: 0;
+}
+
+.activity-symbol {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    background: #20e69a10;
+    color: var(--green);
+    flex-shrink: 0;
+}
+
+.activity-text {
+    flex: 1;
+}
+
+.activity-text strong {
+    display: block;
+    font-size: 11px;
+    margin-bottom: 5px;
+}
+
+.activity-text p {
+    font-size: 10px;
+    color: var(--muted);
+    line-height: 1.6;
+}
+
+.activity-time {
+    color: #667783;
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.footer {
+    text-align: center;
+    color: #657580;
+    font-size: 10px;
+    padding: 28px 10px 12px;
+}
+
+.footer strong {
+    color: var(--green);
+}
+
+/* MOBILE MENU */
+
+.mobile-menu {
+    display: none;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 8px 11px;
+    border-radius: 8px;
+    font-size: 20px;
+}
+
+.sidebar-overlay {
+    display: none;
+}
+
+.toast {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 100;
+    background: #15231f;
+    border: 1px solid #20e69a40;
+    color: var(--green);
+    padding: 13px 18px;
+    border-radius: 10px;
+    font-size: 12px;
+    box-shadow: 0 10px 35px #0005;
+    opacity: 0;
+    transform: translateY(10px);
+    pointer-events: none;
+    transition: .25s;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 1100px) {
+    .stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 760px) {
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: -270px;
+        bottom: 0;
+        z-index: 50;
+        width: 250px;
+        transition: left .25s;
+        overflow-y: auto;
+    }
+
+    .sidebar.open {
+        left: 0;
+    }
+
+    .sidebar-overlay.show {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: #0009;
+        z-index: 40;
+    }
+
+    .mobile-menu {
+        display: block;
+    }
+
+    .topbar {
+        height: 72px;
+        padding: 0 17px;
+    }
+
+    .top-right {
+        gap: 8px;
+    }
+
+    .content {
+        padding: 22px 16px;
+    }
+
+    .welcome {
+        align-items: flex-start;
+    }
+
+    .welcome h2 {
+        font-size: 21px;
+    }
+
+    .welcome p {
+        font-size: 11px;
+    }
+
+    .refresh-btn {
+        padding: 10px;
+        white-space: nowrap;
+    }
+
+    .status-banner {
+        padding: 19px;
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .status-icon {
+        width: 48px;
+        height: 48px;
+    }
+
+    .status-banner h3 {
+        font-size: 15px;
+    }
+
+    .stats {
+        gap: 11px;
+    }
+
+    .card {
+        padding: 15px;
+    }
+
+    .stat-value {
+        font-size: 22px;
+    }
+
+    .stat-top {
+        margin-bottom: 17px;
+    }
+
+    .panel {
+        padding: 16px;
+    }
+
+    .live-pill {
+        padding: 8px;
+        font-size: 10px;
+    }
+}
+
+@media (max-width: 390px) {
+    .brand-name {
+        font-size: 14px;
+    }
+
+    .live-pill {
+        display: none;
+    }
+
+    .welcome {
+        flex-direction: column;
+    }
+
+    .stats {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .stat-value {
+        font-size: 20px;
+    }
+
+    .status-actions {
+        width: 100%;
+    }
+
+    .status-tag {
+        flex: 1;
+        text-align: center;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+    <aside class="sidebar" id="sidebar">
+
+        <div class="brand">
+            <div class="brand-logo">S</div>
+            <div class="brand-name">
+                SILA TECH
+                <small>BOT CONTROL</small>
+            </div>
+        </div>
+
+        <div class="nav-label">MAIN MENU</div>
+
+        <button class="nav-item active" data-section="overview">
+            <span class="nav-icon">▦</span>
+            Overview
+        </button>
+
+        <button class="nav-item" data-section="services">
+            <span class="nav-icon">◈</span>
+            System Services
+        </button>
+
+        <button class="nav-item" data-section="activity">
+            <span class="nav-icon">◷</span>
+            Recent Activity
+        </button>
+
+        <div class="nav-label">SYSTEM</div>
+
+        <button class="nav-item" data-section="information">
+            <span class="nav-icon">ⓘ</span>
+            System Information
+        </button>
+
+        <button class="nav-item" id="refreshMenu">
+            <span class="nav-icon">↻</span>
+            Refresh Dashboard
+        </button>
+
+        <div class="sidebar-bottom">
+            <div class="help-card">
+                <strong>Need assistance?</strong>
+                <p>Check your bot status and review recent system activity.</p>
+                <button id="supportButton">System Overview ↗</button>
+            </div>
+        </div>
+
+    </aside>
+
+    <div class="sidebar-overlay" id="overlay"></div>
+
+    <main class="main">
+
+        <header class="topbar">
+
+            <div style="display:flex;align-items:center;gap:13px">
+                <button class="mobile-menu" id="menuButton" aria-label="Open menu">☰</button>
+
+                <div>
+                    <div class="page-title">Dashboard</div>
+                    <div class="breadcrumb">Home / Overview</div>
+                </div>
+            </div>
+
+            <div class="top-right">
+                <div class="live-pill">
+                    <span class="dot"></span>
+                    SYSTEM ONLINE
+                </div>
+                <div class="avatar">ST</div>
+            </div>
+
+        </header>
+
+        <section class="content" id="overview">
+
+            <div class="welcome">
+                <div>
+                    <h2>Welcome back, Sila 👋</h2>
+                    <p>Monitor your WhatsApp bot and system performance.</p>
+                </div>
+
+                <button class="refresh-btn" id="refreshButton">
+                    ↻ &nbsp; Refresh
+                </button>
+            </div>
+
+            <div class="status-banner">
+
+                <div class="status-left">
+                    <div class="status-icon">✓</div>
+
+                    <div>
+                        <h3 id="mainStatus">SILA TECH BOT IS ALIVE!</h3>
+                        <p id="statusDescription">Dashboard preview · Live status API not connected</p>
+                    </div>
+                </div>
+
+                <div class="status-actions">
+                    <span class="status-tag" id="statusTag">● PREVIEW MODE</span>
+                    <span class="status-tag">PREFIX: .</span>
+                </div>
+
+            </div>
+
+            <div class="stats">
+
+                <div class="card">
+                    <div class="stat-top">
+                        <span class="stat-label">Bot Status</span>
+                        <div class="stat-icon icon-green">◉</div>
+                    </div>
+                    <div class="stat-value" id="botStatus">Preview</div>
+                    <div class="stat-bottom">Awaiting live status endpoint</div>
+                </div>
+
+                <div class="card">
+                    <div class="stat-top">
+                        <span class="stat-label">Uptime</span>
+                        <div class="stat-icon icon-blue">◷</div>
+                    </div>
+                    <div class="stat-value" id="uptime">--</div>
+                    <div class="stat-bottom">Updates when connected to the API</div>
+                </div>
+
+                <div class="card">
+                    <div class="stat-top">
+                        <span class="stat-label">Commands Loaded</span>
+                        <div class="stat-icon icon-yellow">⌘</div>
+                    </div>
+                    <div class="stat-value" id="commands">327</div>
+                    <div class="stat-bottom">Last value from startup logs</div>
+                </div>
+
+                <div class="card">
+                    <div class="stat-top">
+                        <span class="stat-label">Last Update</span>
+                        <div class="stat-icon icon-green">↻</div>
+                    </div>
+                    <div class="stat-value" id="lastUpdate">--:--</div>
+                    <div class="stat-bottom">Browser local time</div>
+                </div>
+
+            </div>
+
+            <div class="grid">
+
+                <div class="panel">
+                    <div class="panel-heading">
+                        <h3>System Activity</h3>
+                        <span>Illustrative chart</span>
+                    </div>
+
+                    <div class="chart" id="chart">
+                        <div class="bar-group">
+                            <div class="bar" style="height:36%"></div>
+                            <span class="bar-label">Mon</span>
+                        </div>
+                        <div class="bar-group">
+                            <div class="bar" style="height:55%"></div>
+                            <span class="bar-label">Tue</span>
+                        </div>
+                        <div class="bar-group">
+                            <div class="bar" style="height:43%"></div>
+                            <span class="bar-label">Wed</span>
+                        </div>
+                        <div class="bar-group">
+                            <div class="bar" style="height:75%"></div>
+                            <span class="bar-label">Thu</span>
+                        </div>
+                        <div class="bar-group">
+                            <div class="bar" style="height:61%"></div>
+                            <span class="bar-label">Fri</span>
+                        </div>
+                        <div class="bar-group">
+                            <div class="bar" style="height:90%"></div>
+                            <span class="bar-label">Sat</span>
+                        </div>
+                        <div class="bar-group">
+                            <div class="bar" style="height:70%"></div>
+                            <span class="bar-label">Sun</span>
+                        </div>
+                    </div>
+
+                    <p class="chart-note">
+                        This chart uses sample values for visual design.
+                        It does not represent measured CPU, traffic or messages.
+                    </p>
+                </div>
+
+                <div class="panel" id="services">
+                    <div class="panel-heading">
+                        <h3>System Services</h3>
+                        <span id="serviceCount">Preview</span>
+                    </div>
+
+                    <div class="service-list">
+
+                        <div class="service">
+                            <div class="service-icon">🤖</div>
+                            <div class="service-info">
+                                <strong>WhatsApp Bot</strong>
+                                <small id="whatsappDetail">Awaiting live API</small>
+                            </div>
+                            <div class="service-status" id="whatsappStatus">
+                                <span class="dot"></span> Preview
+                            </div>
+                        </div>
+
+                        <div class="service">
+                            <div class="service-icon">🌐</div>
+                            <div class="service-info">
+                                <strong>Web Server</strong>
+                                <small>Dashboard interface</small>
+                            </div>
+                            <div class="service-status">
+                                <span class="dot"></span> Loaded
+                            </div>
+                        </div>
+
+                        <div class="service">
+                            <div class="service-icon">📦</div>
+                            <div class="service-info">
+                                <strong>Bot Commands</strong>
+                                <small>Last startup count</small>
+                            </div>
+                            <div class="service-status">
+                                <span class="dot"></span> 327
+                            </div>
+                        </div>
+
+                        <div class="service">
+                            <div class="service-icon">🔄</div>
+                            <div class="service-info">
+                                <strong>Auto Refresh</strong>
+                                <small>Every 15 seconds</small>
+                            </div>
+                            <div class="service-status">
+                                <span class="dot"></span> Active
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="panel activity-panel" id="activity">
+
+                <div class="panel-heading">
+                    <h3>Recent Activity</h3>
+                    <span id="activityCount">Browser events</span>
+                </div>
+
+                <div class="activity-list" id="activityList">
+
+                    <div class="activity">
+                        <div class="activity-symbol">✓</div>
+                        <div class="activity-text">
+                            <strong>Dashboard initialized</strong>
+                            <p>UI loaded successfully in preview mode.</p>
+                        </div>
+                        <span class="activity-time">Now</span>
+                    </div>
+
+                    <div class="activity">
+                        <div class="activity-symbol">◈</div>
+                        <div class="activity-text">
+                            <strong>Live status not connected</strong>
+                            <p>Connect a backend status endpoint to display actual bot uptime and connection status.</p>
+                        </div>
+                        <span class="activity-time">Info</span>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="panel activity-panel" id="information">
+
+                <div class="panel-heading">
+                    <h3>System Information</h3>
+                    <span>Browser information</span>
+                </div>
+
+                <div class="service-list">
+
+                    <div class="service">
+                        <div class="service-icon">🏷️</div>
+                        <div class="service-info">
+                            <strong>Application</strong>
+                            <small>SILA TECH BOT</small>
+                        </div>
+                    </div>
+
+                    <div class="service">
+                        <div class="service-icon">⌨️</div>
+                        <div class="service-info">
+                            <strong>Command Prefix</strong>
+                            <small>.</small>
+                        </div>
+                    </div>
+
+                    <div class="service">
+                        <div class="service-icon">📱</div>
+                        <div class="service-info">
+                            <strong>Browser</strong>
+                            <small id="browserInfo">Detecting browser...</small>
+                        </div>
+                    </div>
+
+                    <div class="service">
+                        <div class="service-icon">🕒</div>
+                        <div class="service-info">
+                            <strong>Local Time</strong>
+                            <small id="localTime">--</small>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <footer class="footer">
+                © <span id="year"></span> <strong>SILA TECH</strong>.
+                Built for your bot monitoring dashboard.
+            </footer>
+
+        </section>
+
+    </main>
+
+</div>
+
+<div class="toast" id="toast">Dashboard refreshed</div>
+
+<script>
+"use strict";
+
+/*
+ * SILA TECH DASHBOARD UI
+ *
+ * Hili ni UI ya preview pekee.
+ * Haithibitishi WhatsApp connection au Heroku process status.
+ *
+ * Baadaye tutaunganisha API ya loader yako.
+ * Default API path inayotarajiwa: /api/status
+ */
+
+const CONFIG = {
+    apiUrl: "/api/status",
+    refreshInterval: 15000
+};
+
+const $ = (id) => document.getElementById(id);
+
+const state = {
+    apiConnected: false,
+    lastSuccessfulStatus: null,
+    timer: null,
+    activities: 2
+};
+
+function formatUptime(seconds) {
+    seconds = Math.max(0, Math.floor(Number(seconds) || 0));
+
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    if (days > 0) {
+        return `${days}d ${hours}h ${minutes}m`;
+    }
+
+    if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+    }
+
+    if (minutes > 0) {
+        return `${minutes}m ${secs}s`;
+    }
+
+    return `${secs}s`;
+}
+
+function showToast(message) {
+    const toast = $("toast");
+    toast.textContent = message;
+    toast.classList.add("show");
+
+    clearTimeout(showToast.timeout);
+
+    showToast.timeout = setTimeout(() => {
+        toast.classList.remove("show");
+    }, 2600);
+}
+
+function addActivity(title, description, symbol = "✓") {
+    const list = $("activityList");
+    const row = document.createElement("div");
+    row.className = "activity";
+
+    const icon = document.createElement("div");
+    icon.className = "activity-symbol";
+    icon.textContent = symbol;
+
+    const body = document.createElement("div");
+    body.className = "activity-text";
+
+    const heading = document.createElement("strong");
+    heading.textContent = title;
+
+    const detail = document.createElement("p");
+    detail.textContent = description;
+
+    const time = document.createElement("span");
+    time.className = "activity-time";
+    time.textContent = new Date().toLocaleTimeString();
+
+    body.append(heading, detail);
+    row.append(icon, body, time);
+    list.prepend(row);
+
+    while (list.children.length > 8) {
+        list.removeChild(list.lastElementChild);
+    }
+
+    state.activities++;
+    $("activityCount").textContent = `${state.activities} events`;
+}
+
+function updateClock() {
+    $("localTime").textContent = new Date().toLocaleString();
+    $("lastUpdate").textContent = new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+    });
+}
+
+function renderPreview() {
+    if (state.apiConnected) return;
+
+    $("mainStatus").textContent = "SILA TECH DASHBOARD";
+    $("statusDescription").textContent =
+        "UI preview · Waiting for a live status API";
+
+    $("statusTag").textContent = "● PREVIEW MODE";
+    $("botStatus").textContent = "Preview";
+    $("uptime").textContent = "--";
+    $("serviceCount").textContent = "Preview";
+    $("whatsappDetail").textContent = "Live connection not verified";
+    $("whatsappStatus").innerHTML =
+        '<span class="dot"></span> Unknown';
+}
+
+function renderLiveStatus(data) {
+    state.apiConnected = true;
+    state.lastSuccessfulStatus = data;
+
+    const online = data.online === true ||
+        data.status === "online" ||
+        data.status === "connected";
+
+    $("mainStatus").textContent = online
+        ? "SILA TECH BOT IS ONLINE"
+        : "SILA TECH BOT STATUS";
+
+    $("statusDescription").textContent = online
+        ? "The backend reports that the bot is online."
+        : "The backend reports that the bot is not online.";
+
+    $("statusTag").textContent = online
+        ? "● ONLINE"
+        : "● OFFLINE";
+
+    $("botStatus").textContent = online ? "Online" : "Offline";
+    $("uptime").textContent =
+        Number.isFinite(Number(data.uptimeSeconds))
+            ? formatUptime(data.uptimeSeconds)
+            : (typeof data.uptime === "string" ? data.uptime : "--");
+
+    if (Number.isFinite(Number(data.commands))) {
+        $("commands").textContent = String(data.commands);
+    }
+
+    $("whatsappDetail").textContent = online
+        ? "Backend reports connected"
+        : "Backend reports disconnected";
+
+    $("whatsappStatus").innerHTML = online
+        ? '<span class="dot"></span> Online'
+        : '<span class="dot" style="background:var(--red)"></span> Offline';
+
+    $("serviceCount").textContent = "Live API";
+
+    $("statusTag").style.color = online
+        ? "var(--green)"
+        : "var(--red)";
+
+    $("statusTag").style.borderColor = online
+        ? "#20e69a35"
+        : "#ff5d6c35";
+
+    $("statusTag").style.background = online
+        ? "#20e69a12"
+        : "#ff5d6c12";
+}
+
+async function refreshDashboard(manual = false) {
+    updateClock();
+
+    try {
+        const response = await fetch(CONFIG.apiUrl, {
+            method: "GET",
+            cache: "no-store",
+            headers: {
+                "Accept": "application/json"
+            },
+            signal: AbortSignal.timeout(5000)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Status API returned ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!data || typeof data !== "object") {
+            throw new Error("Invalid status API response");
+        }
+
+        renderLiveStatus(data);
+
+        if (!state.apiConnected) {
+            addActivity(
+                "Live API connected",
+                "Dashboard received status data.",
+                "✓"
+            );
+        }
+
+        state.apiConnected = true;
+
+        if (manual) {
+            showToast("Dashboard updated");
+        }
+
+    } catch (error) {
+        if (state.apiConnected) {
+            addActivity(
+                "Live API unavailable",
+                "Unable to retrieve the latest bot status.",
+                "!"
+            );
+        }
+
+        state.apiConnected = false;
+        renderPreview();
+
+        if (manual) {
+            showToast("Live API haijaunganishwa bado");
+        }
+    }
+}
+
+function closeMobileMenu() {
+    $("sidebar").classList.remove("open");
+    $("overlay").classList.remove("show");
+}
+
+$("menuButton").addEventListener("click", () => {
+    $("sidebar").classList.toggle("open");
+    $("overlay").classList.toggle("show");
+});
+
+$("overlay").addEventListener("click", closeMobileMenu);
+
+document.querySelectorAll(".nav-item[data-section]").forEach((button) => {
+    button.addEventListener("click", () => {
+        document.querySelectorAll(".nav-item").forEach((item) => {
+            item.classList.remove("active");
+        });
+
+        button.classList.add("active");
+
+        const target = $(button.dataset.section);
+
+        if (target) {
+            target.scrollIntoView({
+                behavior: "smooth",
+                block: "start"
+            });
+        }
+
+        closeMobileMenu();
+    });
+});
+
+$("refreshButton").addEventListener("click", () => {
+    refreshDashboard(true);
+});
+
+$("refreshMenu").addEventListener("click", () => {
+    refreshDashboard(true);
+    closeMobileMenu();
+});
+
+$("supportButton").addEventListener("click", () => {
+    $("information").scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+    });
+
+    closeMobileMenu();
+});
+
+$("browserInfo").textContent = navigator.userAgent.includes("Android")
+    ? "Android browser"
+    : navigator.userAgent.includes("iPhone")
+        ? "iPhone browser"
+        : "Web browser";
+
+$("year").textContent = new Date().getFullYear();
+
+updateClock();
+renderPreview();
+
+refreshDashboard();
+
+state.timer = setInterval(() => {
+    refreshDashboard(false);
+}, CONFIG.refreshInterval);
+
+setInterval(updateClock, 1000);
+</script>
+
+</body>
+</html>
